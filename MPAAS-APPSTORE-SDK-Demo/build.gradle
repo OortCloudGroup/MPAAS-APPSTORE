@@ -1,0 +1,102 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+// 只在本地构建时应用 publish-aars.gradle
+if (file('publish-aars.gradle').exists()) {
+    apply from: 'publish-aars.gradle'
+}
+buildscript {
+    ext {
+        // Kotlin版本配置
+        KOTLIN_VERSION = "2.3.20"
+        // 最低支持 Android 8.0 (API 26)
+        MIN_SDK = 26
+        // 目标版本 Android 16 (API 36)
+        TARGET_SDK = 36
+        // 编译版本 Android 16 (API 37)
+        COMPILE_SDK = 37
+        // Java版本配置
+        JAVA_VERSION = JavaVersion.VERSION_17
+        // React Native版本
+        rnVersion = "0.77.2"
+
+    }
+    repositories {
+        mavenLocal()
+
+        // 优先使用阿里云镜像加速
+        // 官方仓库
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/jcenter' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url "https://maven.aliyun.com/nexus/content/repositories/releases" }
+
+        // 官方仓库（阿里云未同步时使用）
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+
+        // 第三方仓库（按需添加）
+        maven { url 'https://jitpack.io' }
+        maven { url "https://github.com/jitsi/jitsi-maven-repository/raw/master/releases" }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        maven { url 'https://developer.huawei.com/repo/' }
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10"
+        // 使用 8.1.4 - 最后一个稳定版本，没有 Windows 路径 bug
+        classpath 'com.android.tools.build:gradle:9.2.1'
+
+    }
+}
+
+
+allprojects {
+
+    repositories {
+
+        mavenLocal()
+        // 本地仓库优先
+        //maven { url rootProject.file('repository') }
+        // 官方仓库
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+
+        // 镜像仓库加速
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/jcenter' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+        maven { url "https://maven.aliyun.com/nexus/content/repositories/releases" }
+
+
+        // 第三方仓库
+        maven { url 'https://jitpack.io' }
+        maven { url "https://github.com/jitsi/jitsi-maven-repository/raw/master/releases" }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        maven { url 'https://developer.huawei.com/repo/' }
+
+        maven {
+            url = "http://192.168.88.125/zhangzhijun/workup-sdk-maven/raw/master"
+            allowInsecureProtocol = true
+        }
+
+        maven {
+            url = "http://192.168.88.218:8403/repository/workup-sdk-releases/"
+            allowInsecureProtocol = true  // 允许 HTTP 协议
+            // 如果仓库需要认证，取消注释以下配置
+            // credentials {
+            //     username = project.findProperty("nexusUsername") ?: "admin"
+            //     password = project.findProperty("nexusPassword") ?: "admin123"
+            // }
+        }
+
+    }
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.buildDir
+}

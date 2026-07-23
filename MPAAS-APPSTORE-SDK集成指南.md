@@ -1,18 +1,20 @@
-# AppStore 模块 —— 第三方集成文档
+# MPAAS-APPSTORE-SDK集成指南
+## 一、MPAAS-APPSTORE-SDK 简介
 
-## 一、模块简介
+MPAAS-APPSTORE-SDK 是一个企业级 Android 应用市场开发套件，提供应用展示、下载、安装、更新、评论评分等完整能力，所有功能封装在 `omm-lib` 中，第三方只需引入单个 AAR 即可快速集成。
 
-AppStore 是一个 Android Library，为宿主 App 提供**企业级应用市场**功能，支持应用展示、下载安装、更新管理、搜索、评论评分等能力。
+### 1.1 核心特性
 
-- **命名空间**: `com.oortcloud.appstore`
-- **artifactId**: `AppStore`
-- **技术栈**: RxJava2 + Retrofit2 + LitePal + Glide
+- **一键集成** — 单个 AAR 文件包含所有功能，无需额外配置
+- **多源依赖** — 支持 JitPack、Nexus、GitLab、本地 AAR 四种集成方式
+- **数据持久化** — 内置 SQLite 数据库，自动管理应用信息
+- **权限封装** — 模块已声明所需权限，宿主无需重复配置
 
 ---
 
 ## 二、集成方式
 
-AppStore 模块打包在 `omm-lib` 中，提供了以下四种集成方式。
+`omm-lib` 提供了以下四种集成方式，任选其一即可。
 
 ### 2.1 方式一：GitHub + JitPack（公开仓库）
 
@@ -27,7 +29,7 @@ AppStore 模块打包在 `omm-lib` 中，提供了以下四种集成方式。
 5. 访问 https://jitpack.io/#Bean-V/WorkUp-SDK 触发构建
 6. 等待构建完成（首次约 5-10 分钟）
 
-> ⚠️ 必须先创建 Release 并在 JitPack 构建成功，才能添加依赖
+> 必须先创建 Release 并在 JitPack 构建成功，才能添加依赖
 
 **1. 添加仓库**
 
@@ -76,7 +78,7 @@ allprojects {
 
 ```gradle
 dependencies {
-    implementation 'com.oort.workup-sdk:omm-lib:1.0.0'
+    implementation 'com.oort.workup-sdk:omm-lib:1.0.1'
 }
 ```
 
@@ -113,7 +115,7 @@ allprojects {
 
 ```gradle
 dependencies {
-    implementation 'com.oort.workup-sdk:omm-lib:1.0.0'
+    implementation 'com.oort.workup-sdk:omm-lib:1.0.1'
 }
 ```
 
@@ -148,12 +150,29 @@ dependencies {
 
 ### 2.5 前置依赖
 
-AppStore（包含在 `omm-lib` 中）依赖以下模块，使用远程依赖时这些会通过 POM 自动引入。使用本地 AAR 时需确保宿主已引入：
+使用远程依赖时，以下模块会通过 POM 自动引入。使用本地 AAR 时需确保宿主已引入：
 
 | 依赖模块 | 说明 |
 |---------|------|
 | `:core` | 基础框架（用户信息、网络常量等） |
-| `:ooortCloudDisk` | 云盘模块（应用市场内打开云盘时使用） |
+| `:ooortCloudDisk` | 云盘模块（AppStore 内打开云盘时使用） |
+
+---
+
+### 2.6 所需权限
+
+模块已在 `AndroidManifest.xml` 中声明以下权限，宿主**无需重复声明**：
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+<uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+```
+
+宿主 App 需在**运行时**主动申请存储权限和安装权限（模块已封装权限检查逻辑）。
 
 ---
 
@@ -358,41 +377,92 @@ AppEventUtil.onClick(appInfo, downloadListener);
 
 ---
 
-## 七、权限声明
+## 七、完整集成示例
 
-模块已在 AndroidManifest.xml 中声明以下权限，宿主**无需重复声明**：
+```java
+// ========== 1. Application 初始化 ==========
+@Override
+public void onCreate() {
+    super.onCreate();
+    AppStoreInit.setApplication(this);
+    Constant.BASE_URL = "https://your-server.com/";
+}
 
-| 权限 | 用途 |
-|------|------|
-| `android.permission.INTERNET` | 网络请求 |
-| `android.permission.READ_EXTERNAL_STORAGE` | 读取下载文件 |
-| `android.permission.WRITE_EXTERNAL_STORAGE` | 写入下载文件 |
-| `android.permission.REQUEST_INSTALL_PACKAGES` | APK 安装 |
-| `android.permission.REQUEST_DELETE_PACKAGES` | APK 卸载 |
-| `android.permission.VIBRATE` | 振动反馈 |
+// ========== 2. 用户登录后初始化数据 ==========
+// 假设用户登录成功，获取到 token 和 uuid
+String token = loginResponse.getToken();
+String uuid = UserInfo.getOort_uuid();
+AppStoreInit.getInstance().initData(token, uuid);
 
-宿主 App 需在**运行时**主动申请存储权限和安装权限（模块已封装权限检查逻辑，会在必要时弹窗引导用户）。
+// ========== 3. 打开应用市场首页 ==========
+Intent intent = new Intent(context, MainActivity.class);
+context.startActivity(intent);
+
+// ========== 4. 打开应用详情页 ==========
+AppInfo appInfo = getAppInfoFromList(); // 从列表接口获取
+AppDetailedActivity.actionStart(context, appInfo);
+
+// ========== 5. 切换用户时重新初始化 ==========
+// 退出当前用户
+AppStoreInit.getInstance().clearData();
+
+// 新用户登录
+String newToken = newLoginResponse.getToken();
+String newUuid = newUserInfo.getOort_uuid();
+AppStoreInit.getInstance().initData(newToken, newUuid);
+```
 
 ---
 
-## 八、常见问题
+## 八、注意事项
 
-**Q: 初始化时提示 token/uuid 为空？**
+1. **初始化时提示 token/uuid 为空？**  
+   确保在调用 `initData()` 之前，用户已成功登录，且 `FastSharedPreferences` 中已保存 `token` 信息。
 
-A: 确保在调用 `initData()` 之前，用户已成功登录，且 `FastSharedPreferences` 中已保存 `token` 信息。
+2. **应用详情页打开后立即关闭？**  
+   检查 `appInfo` 对象是否为 null。详情页启动时要求传入非空的 `AppInfo` 实例。
 
-**Q: 应用详情页打开后立即关闭？**
+3. **下载后无法安装 APK？**  
+   Android 8+ 需要引导用户开启「安装未知应用」权限；Android 11+ 还可能需申请 `MANAGE_EXTERNAL_STORAGE` 权限。模块已内置相关逻辑，用户按提示操作即可。
 
-A: 检查 `appInfo` 对象是否为 null。详情页启动时要求传入非空的 `AppInfo` 实例。
+4. **切换用户后数据未刷新？**  
+   切换用户后需重新调用 `AppStoreInit.getInstance().initData(newToken, newUuid)` 刷新本地数据。
 
-**Q: 下载后无法安装 APK？**
+5. **模块使用了系统签名？**  
+   模块 Manifest 中声明了 `android:sharedUserId="android.uid.system"`，如需卸载或独立使用该功能，请移除该属性。
 
-A: Android 8+ 需要引导用户开启「安装未知应用」权限；Android 11+ 还可能需申请 `MANAGE_EXTERNAL_STORAGE` 权限。模块已内置相关逻辑，用户按提示操作即可。
+---
 
-**Q: 切换用户后数据未刷新？**
+## 九、常见问题
 
-A: 切换用户后需重新调用 `AppStoreInit.getInstance().initData(newToken, newUuid)` 刷新本地数据。
+### Q1: 本地 AAR 集成时缺少依赖怎么办？
 
-**Q: 模块使用了系统签名？**
+A: 确保宿主项目已引入 `:core` 和 `:ooortCloudDisk` 模块，或使用远程依赖方式自动引入。
 
-A: 模块 Manifest 中声明了 `android:sharedUserId="android.uid.system"`，如需卸载或独立使用该功能，请移除该属性。
+### Q2: 下载失败怎么办？
+
+A: 检查以下几点：
+- 确认已申请存储权限和安装权限
+- 检查 `Constant.BASE_URL` 是否正确配置
+- 确认 `AppStoreInit.initData()` 已调用且 token/uuid 有效
+- 查看 Logcat 中是否有网络请求错误
+
+### Q3: 如何自定义 UI 样式？
+
+A: AppStore 模块使用默认主题，如需自定义样式，可在宿主项目中覆盖相关资源文件或继承 Activity 后修改布局。
+
+---
+
+## 十、技术支持
+
+如有问题，请联系技术支持团队或查阅以下资源：
+
+- [GitHub 仓库](https://github.com/Bean-V/WorkUp-SDK)
+- [Release 发布页](https://github.com/Bean-V/WorkUp-SDK/releases)
+- [Issue 反馈](https://github.com/Bean-V/WorkUp-SDK/issues)
+
+---
+
+**文档版本**: v1.0.0  
+**最后更新**: 2026-07-10  
+**适用 SDK 版本**: omm-lib 1.0.0+
